@@ -57,3 +57,8 @@ You can see the examples in this directory to check the libraries
 ## More info
 
 visit https://nomorepass.com or open here an issue
+
+## Other libraries
+
+* node/js: https://github.com/yoprogramo/nomorepass
+* python: https://github.com/yoprogramo/nomorepass-py
