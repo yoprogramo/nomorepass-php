@@ -11,6 +11,7 @@
 
 class NoMorePass {
     
+    private $apikey;
     private $server;
     private $base;
     private $getidUrl;
@@ -21,11 +22,16 @@ class NoMorePass {
     private $stopped;
     private $token;
     private $ticket;
+    private $expiry;
 
     
-    public function __construct($server=NULL) {
+    public function __construct($server=NULL, $apikey=NULL) {
         if ($server==NULL)
-            $server='nomorepass.com';
+            $server='api.nomorepass.com';
+        if ($apikey!=NULL)
+            $this->apikey=$apikey;
+        else
+            $this->apikey='FREEAPI';
         $this->server=$server;
         $this->base="https://".$server;
         $this->getidUrl = $this->base."/api/getid.php";
@@ -34,10 +40,11 @@ class NoMorePass {
         $this->grantUrl = $this->base."/api/grant.php";
         $this->pingUrl = $this->base."/api/ping.php";
         $this->stopped = false;
+        $this->expiry = NULL;
     }
 
     /*
-     * Cryptogrphic functions 
+     * Cryptographic functions 
      */
     public function newToken() {
         $length = 12;
@@ -99,7 +106,8 @@ class NoMorePass {
             'Accept: application/json',
             'Cache-Control: no-cache',
             'Content-Type: application/x-www-form-urlencoded; charset=utf-8',
-            'User-Agent: NoMorePass-PHP/1.0'
+            'User-Agent: NoMorePass-PHP/1.0',
+            'apikey' => $this->apikey
         ];
         return $headers;
     }
@@ -116,8 +124,14 @@ class NoMorePass {
         return $ch;
     }
 
+    public function setExpiry($expiry) {
+        $this->expiry = $expiry;
+    }
+
     public function getQrText($site){
         $fields = ['site' => $site];
+        if ($this->expiry !=NULL)
+            $fields['expiry'] = $this->expiry;
         $ch = $this->prepareRequest($this->getidUrl,$fields);
         //execute post
         $result = curl_exec($ch);
@@ -152,6 +166,8 @@ class NoMorePass {
             if ($res['resultado']=='ok'){
                 $token = $res['token'];
                 $fields = ['site' => $site];
+                if ($this->expiry !=NULL)
+                    $fields['expiry'] = $this->expiry;
                 $ch = $this->prepareRequest($this->getidUrl,$fields);
                 $result = curl_exec($ch);
                 $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
