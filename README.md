@@ -62,6 +62,8 @@ visit https://nomorepass.com or open here an issue
 
 * node/js: https://github.com/yoprogramo/nomorepass
 * python: https://github.com/yoprogramo/nomorepass-py
+* Dart/Flutter: https://github.com/yoprogramo/nomorepass-dart
+* Java: https://github.com/yoprogramo/nomorepass-java
 
 ## How to use NoMorePass
 
