@@ -4,7 +4,7 @@
  * NoMorePass class: PHP interface for sending/retrieving credentials
  * using nomorepass.com cybersecurity services.
  * 
- * (C)BiblioEteca Technologies 2019.
+ * (C)BiblioEteca Technologies 2019 - 2022.
  * @author Jose A. Espinosa (yoprogramo@gmail.com)
  * 
  */
@@ -112,11 +112,33 @@ class NoMorePass {
         return $headers;
     }
 
+    public function getJsonHeaders () {
+        $headers = [
+            'Accept: application/json',
+            'Cache-Control: no-cache',
+            'Content-Type: application/json',
+            'User-Agent: NoMorePass-PHP/1.0',
+        ];
+        return $headers;
+    }
+
     public function prepareRequest ($url,$fields) {
         $data = http_build_query($fields);
         $ch = curl_init ();
         //set the url, number of POST vars, POST data
         curl_setopt($ch,CURLOPT_HTTPHEADER, $this->getHeaders());
+        curl_setopt($ch,CURLOPT_URL, $url);
+        curl_setopt($ch,CURLOPT_POST, true);
+        curl_setopt($ch,CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch,CURLOPT_RETURNTRANSFER, true); 
+        return $ch;
+    }
+
+    public function prepareJsonRequest ($url,$fields) {
+        $data = json_encode($fields);
+        $ch = curl_init ();
+        //set the url, number of POST vars, POST data
+        curl_setopt($ch,CURLOPT_HTTPHEADER, $this->getJsonHeaders());
         curl_setopt($ch,CURLOPT_URL, $url);
         curl_setopt($ch,CURLOPT_POST, true);
         curl_setopt($ch,CURLOPT_POSTFIELDS, $data);
@@ -179,9 +201,6 @@ class NoMorePass {
                         $this->token = $tk;
                         $this->ticket = $res['ticket'];
                         $ep = $this->encrypt($password,$tk);
-                        error_log($this->ticket);
-                        error_log($tk);
-                        error_log($ep);
                         if (is_array($extra)){
                             if (array_key_exists('extra',$extra)){
                                 if (is_array($extra['extra']) && array_key_exists('secret',$extra['extra'])){
@@ -197,7 +216,6 @@ class NoMorePass {
                         curl_close($ch);
                         if ($http_status==200){
                             $res = json_decode($result, true);
-                            error_log("Granted");
                             $text = 'nomorepass://SENDPASS'.$tk.$this->ticket.$site;
                             return $text;
                         } else {
@@ -272,6 +290,77 @@ class NoMorePass {
                         return $res;
                     }
             }
+        }
+    }
+
+    public function sendRemotePassToDevice ($cloud,$deviceid,$secret,$username,$password,$extra){
+        // Envía una contraseña remota a un dispositivo cloud
+        // cloud: url de /extern/send_ticket
+        // deviceid: id del dispositivo
+        // secret: hash del secreto del dispositivo
+        // username: usuario
+        // password: contraseña
+        // extra: campos extra
+        $cloudurl = $cloud;
+        if (is_null($cloudurl)){
+            $cloudurl = "https://api.nmkeys.com/extern/send_ticket";
+        }
+        $this->token = $secret;
+        $fields = ['site' => 'Send remote pass'];
+        if ($this->expiry !=NULL)
+            $fields['expiry'] = $this->expiry;
+        $ch = $this->prepareRequest($this->getidUrl,$fields);
+        $result = curl_exec($ch);
+        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($http_status==200){
+            $res = json_decode($result, true);
+            if ($res['resultado']=='ok') {
+                $this->ticket = $res['ticket'];
+                $ep = $this->encrypt($password,$this->token);
+                $textra = ['type' => 'remote'];
+                if (!is_null($extra)){
+                    $textra = $extra;
+                }
+                $extra = json_encode($textra);
+                $fields = ['grant' => 'grant',
+                    'ticket' => $this->ticket,
+                    'user' => $username, 
+                    'password' => $ep, 
+                    'extra' => $extra];
+                $ch = $this->prepareRequest($this->grantUrl,$fields);
+                $result = curl_exec($ch);
+                $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                if ($http_status==200){
+                    $res = json_decode($result, true);
+                    if ($res['resultado']=='ok'){
+                        $fields = [
+                            'hash' => substr($this->token,0,10),
+                            'ticket' => $this->ticket,
+                            'deviceid' => $deviceid
+                        ];
+                        $ch = $this->prepareJsonRequest($cloudurl,$fields);
+                        $result = curl_exec($ch);
+                        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        return $result;
+                    }
+                    else {
+                        error_log("Error calling ".$cloudurl);
+                        return FALSE;
+                    }
+                } else {
+                    error_log("Error calling ".$cloudurl);
+                    return FALSE;
+                }
+            }else {
+                error_log("Error calling ".$this->getidUrl);
+                return FALSE;
+            }
+        } else {
+            error_log("Error calling ".$this->getidUrl);
+            return FALSE;
         }
     }
 }
