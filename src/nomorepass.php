@@ -20,8 +20,8 @@ class NoMorePass {
     private $grantUrl;
     private $pingUrl;
     private $stopped;
-    private $token;
-    private $ticket;
+    public $token;
+    public $ticket;
     private $expiry;
 
     
